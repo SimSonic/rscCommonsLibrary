@@ -17,7 +17,7 @@ To use it add dependency to your project's `pom.xml` using this url:
 		<dependency>
 			<groupId>ru.simsonic</groupId>
 			<artifactId>rscCommonsLibrary</artifactId>
-			<version>1.0.0</version>
+			<version>2.1.0</version>
 		</dependency>
 		...
 	</dependencies>
