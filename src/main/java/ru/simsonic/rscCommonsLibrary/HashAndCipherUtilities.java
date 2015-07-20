@@ -105,7 +105,7 @@ public final class HashAndCipherUtilities
 	}
 	public static <T> T loadObject(File source, Class<T> dataClass) throws IOException, NullPointerException
 	{
-		try(final JsonReader reader = new JsonReader(new FileReader(source)))
+		try(final JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(source), "UTF-8")))
 		{
 			return new Gson().fromJson(reader, dataClass);
 		} catch(JsonParseException ex) {
@@ -114,7 +114,7 @@ public final class HashAndCipherUtilities
 	}
 	public static <T> boolean saveObject(File target, Object data, Class<T> dataClass) throws IOException, NullPointerException
 	{
-		try(final JsonWriter writer = new JsonWriter(new FileWriter(target)))
+		try(final JsonWriter writer = new JsonWriter(new OutputStreamWriter(new FileOutputStream(target), "UTF-8")))
 		{
 			writer.setIndent("\t");
 			new Gson().toJson(data, dataClass, writer);
