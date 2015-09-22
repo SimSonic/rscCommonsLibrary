@@ -7,8 +7,6 @@ import com.google.gson.stream.JsonWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -30,7 +28,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
-import sun.misc.BASE64Decoder;
 
 public final class HashAndCipherUtilities
 {
@@ -102,6 +99,19 @@ public final class HashAndCipherUtilities
 	public static String fileToSHA1(String filename) throws IOException
 	{
 		return fileToSHA1(new File(filename));
+	}
+	public static String objectToJson(Object object, Class dataClass)
+	{
+		return new Gson().toJson(object, dataClass);
+	}
+	public static <T> T objectFromJson(String json, Class<T> dataClass) throws IOException
+	{
+		try
+		{
+			return new Gson().fromJson(json, dataClass);
+		} catch(JsonParseException ex) {
+			throw new IOException(ex);
+		}
 	}
 	public static <T> T loadObject(File source, Class<T> dataClass) throws IOException, NullPointerException
 	{
@@ -211,9 +221,9 @@ public final class HashAndCipherUtilities
 	{
 		try
 		{
-			final String algorythm = new String(new BASE64Decoder().decodeBuffer("UEJFV2l0aE1ENUFuZERFUw==")); // "PBEWithMD5AndDES";
-			final String secretkey = new String(new BASE64Decoder().decodeBuffer("cGFzc3dvcmRmaWxl"));         // "passwordfile";
-			final Cipher cipher = Cipher.getInstance("PBEWithMD5AndDES");
+			final String algorythm = new String(new sun.misc.BASE64Decoder().decodeBuffer("UEJFV2l0aE1ENUFuZERFUw==")); // "PBEWithMD5AndDES";
+			final String secretkey = new String(new sun.misc.BASE64Decoder().decodeBuffer("cGFzc3dvcmRmaWxl"));         // "passwordfile";
+			final Cipher cipher = Cipher.getInstance(algorythm);
 			final SecretKey pbeKey = SecretKeyFactory.getInstance(algorythm).generateSecret(new PBEKeySpec(secretkey.toCharArray()));
 			final byte[] salt = new byte[8];
 			(new Random(43287234L)).nextBytes(salt);
