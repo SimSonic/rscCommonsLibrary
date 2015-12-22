@@ -9,22 +9,41 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.Map;
 
 public class GenericWebConnection
 {
-	public static <T> T webExecuteObj(String url, Object payload, Class<T> responseClass) throws IOException
+	public static <T> T webExecuteObj(String url, Object payload, Class<T> responseClass, Map<String, String> headers) throws IOException
 	{
 		final Gson gson = new Gson();
 		final String jsonPayload = gson.toJson(payload);
-		return webExecute(url, jsonPayload, responseClass);
+		return webExecute(url, jsonPayload, responseClass, headers);
+	}
+	public static <T> T webExecuteObj(String url, Object payload, Class<T> responseClass) throws IOException
+	{
+		return webExecuteObj(url, payload, responseClass, null);
+	}
+	public static <T> T webExecute(String url, String payload, Class<T> responseClass, Map<String, String> headers) throws IOException
+	{
+		final Gson gson = new Gson();
+		final String jsonResponse = webExecute(url, payload, headers);
+		try
+		{
+			return gson.fromJson(jsonResponse, responseClass);
+		} catch(JsonParseException ex) {
+			throw new IOException(jsonResponse);
+		}
 	}
 	public static <T> T webExecute(String url, String payload, Class<T> responseClass) throws IOException
 	{
-		final Gson gson = new Gson();
-		final String jsonResponce = webExecute(url, payload);
-		return gson.fromJson(jsonResponce, responseClass);
+		return webExecute(url, payload, responseClass, null);
 	}
 	public static String webExecute(String url, String payload) throws IOException
+	{
+		return webExecute(url, payload, Collections.EMPTY_MAP);
+	}
+	public static String webExecute(String url, String payload, Map<String, String> headers) throws IOException
 	{
 		try
 		{
@@ -34,11 +53,17 @@ public class GenericWebConnection
 			connection.setRequestMethod("POST");
 			connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 			connection.setConnectTimeout(5000);
+			if(headers != null)
+				for(Map.Entry<String, String> header : headers.entrySet())
+					connection.setRequestProperty(header.getKey(), header.getValue());
+			if(headers != null && headers.containsKey("Content-Type") == false)
+				connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 			connection.setReadTimeout(5000);
 			connection.setUseCaches(false);
 			try(final DataOutputStream dos = new DataOutputStream(connection.getOutputStream()))
 			{
-				dos.write(payload.getBytes("UTF-8"));
+				if(payload != null)
+					dos.write(payload.getBytes("UTF-8"));
 				dos.flush();
 			}
 			final int responseCode = connection.getResponseCode();
