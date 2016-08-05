@@ -11,19 +11,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ConnectionMySQL
 {
-	protected final Logger logger;
-	public ConnectionMySQL(Logger logger)
-	{
-		this.logger = logger;
-	}
-	public static class ConnectionParams
+	private static final Pattern PATTERN_CONNECTION = Pattern.compile("jdbc:mysql://(?:[\\w:\\-\\.]+)/([\\w\\-]+)");
+	public  static class ConnectionParams
 	{
 		public String nodename;
 		public String database;
@@ -37,7 +31,9 @@ public class ConnectionMySQL
 	protected String RememberPass;
 	private volatile Connection connection;
 	private volatile Statement  statement;
-	private static final Pattern patterndb = Pattern.compile("jdbc:mysql://(?:[\\w:\\-\\.]+)/([\\w\\-]+)");
+	public ConnectionMySQL()
+	{
+	}
 	public synchronized void initialize(ConnectionParams cp)
 	{
 		initialize(cp.nodename, cp.database, cp.username, cp.password, cp.prefixes);
@@ -48,13 +44,13 @@ public class ConnectionMySQL
 		RememberURL  = "jdbc:mysql://" + database;
 		RememberUser = username;
 		RememberPass = password;
-		Matcher match = patterndb.matcher(RememberURL);
+		Matcher match = PATTERN_CONNECTION.matcher(RememberURL);
 		clearQueryTemplate();
 		if(match.find())
 			setupQueryTemplate("{DATABASE}", match.group(1));
 		setupQueryTemplate("{PREFIX}", prefixes);
 	}
-	protected String loadResourceSQLT(String name)
+	protected String loadResourceSQLT(String name) throws SQLException
 	{
 		final StringBuilder result = new StringBuilder();
 		try
@@ -64,7 +60,7 @@ public class ConnectionMySQL
 			for(String line = reader.readLine(); line != null; line = reader.readLine())
 				result.append(line).append("\n");
 		} catch(IOException | NullPointerException ex) {
-			logger.log(Level.WARNING, "[rscAPI][SQL] Exception in LoadResource():\n{0}", ex);
+			throw new SQLException(ex);
 		}
 		return result.toString();
 	}
@@ -87,7 +83,7 @@ public class ConnectionMySQL
 			query = query.replace(pairs.getKey(), pairs.getValue());
 		return query;
 	}
-	public synchronized boolean isConnected()
+	public synchronized boolean isConnected() throws SQLException
 	{
 		try
 		{
@@ -99,11 +95,11 @@ public class ConnectionMySQL
 			if(connection != null)
 				return connection.isValid(0);
 		} catch(SQLException ex) {
-			logger.log(Level.WARNING, "[rscAPI][SQL] Exception in isConnected():\n{0}", ex);
+			throw ex;
 		}
 		return false;
 	}
-	public synchronized boolean connect()
+	public synchronized boolean connect() throws SQLException
 	{
 		if(RememberURL == null || RememberUser == null || RememberPass == null)
 			return false;
@@ -112,16 +108,17 @@ public class ConnectionMySQL
 		try
 		{ 
 			Class.forName("com.mysql.jdbc.Driver");
-			logger.log(Level.INFO, "[rscAPI][SQL] Connecting to \"{0}\"...", RememberName);
 			String FixedURL = RememberURL + "?allowMultiQueries=true&autoReConnect=true";
 			connection = DriverManager.getConnection(FixedURL, RememberUser, RememberPass);
 			statement  = connection.createStatement();
 			return true;
-		} catch(SQLException | ClassNotFoundException | NullPointerException ex) {
-			logger.log(Level.WARNING, "[rscAPI][SQL] Exception in Connect(\"{0}\"):\n{1}", new Object[] { RememberName, ex });
+		} catch(SQLException ex) {
 			disconnect();
+			throw ex;
+		} catch(ClassNotFoundException | NullPointerException ex) {
+			disconnect();
+			throw new SQLException(ex);
 		}
-		return false;
 	}
 	public synchronized void disconnect()
 	{
@@ -142,15 +139,15 @@ public class ConnectionMySQL
 			connection = null;
 		}
 	}
-	public synchronized ResultSet executeQueryT(String templateResource)
+	public synchronized ResultSet executeQueryT(String templateResource) throws SQLException
 	{
 		return executeQuery(loadResourceSQLT(templateResource));
 	}
-	public synchronized boolean executeUpdateT(String templateResource)
+	public synchronized boolean executeUpdateT(String templateResource) throws SQLException
 	{
 		return executeUpdate(loadResourceSQLT(templateResource));
 	}
-	public synchronized ResultSet executeQuery(String query)
+	public synchronized ResultSet executeQuery(String query) throws SQLException
 	{
 		final String threadName = Thread.currentThread().getName();
 		Thread.currentThread().setName("rscAPI:SQL-read (" + threadName + ")");
@@ -162,13 +159,13 @@ public class ConnectionMySQL
 				return result;
 			}
 		} catch(SQLException ex) {
-			logger.log(Level.WARNING, "[rscAPI][SQL] Exception in Query():\n{0}", ex);
+			throw ex;
 		} finally {
 			Thread.currentThread().setName(threadName);
 		}
 		return null;
 	}
-	public synchronized boolean executeUpdate(String query)
+	public synchronized boolean executeUpdate(String query) throws SQLException
 	{
 		final String threadName = Thread.currentThread().getName();
 		Thread.currentThread().setName("rscAPI:SQL-write (" + threadName + ")");
@@ -176,11 +173,11 @@ public class ConnectionMySQL
 		{
 			if(isConnected())
 			{
-				final boolean result = statement.execute(queryExplicitation(query));
+				statement.execute(queryExplicitation(query));
 				return true;
 			}
 		} catch(SQLException ex) {
-			logger.log(Level.WARNING, "[rscAPI][SQL] Exception in Execute():\n{0}", ex);
+			throw ex;
 		} finally {
 			Thread.currentThread().setName(threadName);
 		}
