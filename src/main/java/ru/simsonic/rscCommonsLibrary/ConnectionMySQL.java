@@ -139,6 +139,10 @@ public class ConnectionMySQL
 			connection = null;
 		}
 	}
+	public Connection getConnection()
+	{
+		return connection;
+	}
 	public synchronized ResultSet executeQueryT(String templateResource) throws SQLException
 	{
 		return executeQuery(loadResourceSQLT(templateResource));
